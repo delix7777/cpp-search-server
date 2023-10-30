@@ -143,6 +143,7 @@ private:
         }
 
         vector<Document> matched_documents;
+
         for (const auto& [id, relevance] : document_to_relevance) {
             matched_documents.push_back({ id, relevance });
         }
