@@ -87,7 +87,7 @@ private:
         set<string> plus_words;
         set<string> minus_words;
     };
-
+    // map <word, map<document_id, term_frequency>>
     map<string, map<int, double>> word_to_document_freqs_;
     set<string> stop_words_;
     int document_count_ = 0;
