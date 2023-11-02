@@ -125,7 +125,7 @@ private:
 
     vector<Document> FindAllDocuments(const Query& query_words) const {
 
-        map<int, double> document_to_relevance;
+        map<int, double> document_to_relevance; // id and relevance
         for (const auto& plus_word : query_words.plus_words) {
             if (word_to_document_freqs_.count(plus_word) != 0) {
                 const double inverse_doc_freq = ComputeWordInverseDocumentFreq(plus_word);
