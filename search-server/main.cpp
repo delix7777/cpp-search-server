@@ -7,6 +7,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <numeric>
 
 
 using namespace std;
@@ -83,10 +84,13 @@ class SearchServer {
 public:
     template <typename StringContainer>
     explicit SearchServer(const StringContainer& stop_words) : stop_words_(MakeUniqueNonEmptyStrings(stop_words)) {
-        for (const auto& stop_word : stop_words_) {
-            if (IsValidWord(stop_word) == false) {
+        /*for (const auto& stop_word : stop_words_) {
+            if (!IsValidWord(stop_word)) {
                 throw invalid_argument("Invalide characters in stop words"s);
             }
+        }*/
+        if (!all_of(stop_words_.begin(), stop_words_.end(), [](string stop_word) { return IsValidWord(stop_word); })) {
+            throw invalid_argument("Invalide characters in stop words"s);
         }
     }
     explicit SearchServer(const string& stop_words_text) : SearchServer(SplitIntoWords(stop_words_text)) {
@@ -95,12 +99,12 @@ public:
     bool AddDocument(int document_id, const string& document, DocumentStatus status,
         const vector<int>& ratings) {
         if (document_id < 0) {
-            throw invalid_argument("Negative ID in document"s);
+            throw invalid_argument("Negative ID " + document_id + " in document"s);
         }
         if (documents_.count(document_id)) {
-            throw invalid_argument("ID is already in added documents"s);
+            throw invalid_argument("ID " + document_id + " is already in added documents"s);
         }
-        if (IsValidWord(document) == false) {
+        if (!IsValidWord(document)) {
             throw invalid_argument("Invalid characters in document"s);
         }
         const vector<string> words = SplitIntoWordsNoStop(document);
@@ -203,22 +207,18 @@ private:
         if (ratings.empty()) {
             return 0;
         }
-        int rating_sum = 0;
-        for (const int rating : ratings) {
-            rating_sum += rating;
-        }
-        return rating_sum / static_cast<int>(ratings.size());
+        return accumulate(ratings.begin(), ratings.end(), 0) / static_cast<int>(ratings.size());
     }
 
     struct QueryWord {
         string data;
-        bool is_minus;
-        bool is_stop;
+        bool is_minus{};
+        bool is_stop{};
     };
 
     QueryWord ParseQueryWord(string text) const {
-        if (text.empty() == true) {
-            throw invalid_argument("Search is empty"s);
+        if (text.empty()) {
+            throw invalid_argument("Search query is empty"s);
         }
         if (text.back() == '-') {
             throw invalid_argument("Empty query after -"s);
@@ -275,7 +275,7 @@ private:
                 continue;
             }
             const double inverse_document_freq = ComputeWordInverseDocumentFreq(word);
-            for (const auto [document_id, term_freq] : word_to_document_freqs_.at(word)) {
+            for (const auto& [document_id, term_freq] : word_to_document_freqs_.at(word)) {
                 const auto& document_data = documents_.at(document_id);
                 if (document_predicate(document_id, document_data.status, document_data.rating)) {
                     document_to_relevance[document_id] += term_freq * inverse_document_freq;
@@ -287,13 +287,13 @@ private:
             if (word_to_document_freqs_.count(word) == 0) {
                 continue;
             }
-            for (const auto [document_id, _] : word_to_document_freqs_.at(word)) {
+            for (const auto& [document_id, _] : word_to_document_freqs_.at(word)) {
                 document_to_relevance.erase(document_id);
             }
         }
 
         vector<Document> matched_documents;
-        for (const auto [document_id, relevance] : document_to_relevance) {
+        for (const auto& [document_id, relevance] : document_to_relevance) {
             matched_documents.push_back(
                 { document_id, relevance, documents_.at(document_id).rating });
         }
@@ -302,7 +302,10 @@ private:
 
     static bool IsValidWord(const string& word) {
         return none_of(word.begin(), word.end(), [](char c) {
-            return c >= '\0' && c < ' '; });
+            if (c >= '\0' && c < ' ') {
+                throw invalid_argument("Invalid characters: " + c + " in document"s);
+            }
+            return false; });
     }
 };
 
@@ -314,19 +317,28 @@ void PrintDocument(const Document& document) {
 }
 int main() {
     SearchServer search_server("a and at in on wi\x17th"s);
-    search_server.AddDocument(-1, "russian guys and golden dragon"s, DocumentStatus::ACTUAL, { -7, 1, 7, -1 });
-    search_server.AddDocument(-1, "russian guys and golden dragon"s, DocumentStatus::ACTUAL, { -7, 1, 7, -1 });
-    search_server.AddDocument(1, "russian guys and golden dragon"s, DocumentStatus::ACTUAL, { 3, 5 });
-    search_server.AddDocument(2, "a dragon eats meat with a small bee"s, DocumentStatus::ACTUAL, { 1, 2, 3 });
-    search_server.AddDocument(3, "a dragon eat\x17s meat with a small snake"s, DocumentStatus::ACTUAL, { -1, -2, -3 });
-    search_server.AddDocument(4, "dragon and snake are good guys"s, DocumentStatus::ACTUAL, { 1, 1, 1 });
-    search_server.FindTopDocuments("russian -guys"s);
-    search_server.FindTopDocuments("--russian guys"s);
-    search_server.FindTopDocuments("guys -"s);
-    search_server.FindTopDocuments("-"s);
-    search_server.MatchDocument("good guys"s, 4);
-    search_server.MatchDocument("russian --guys"s, 1);
-    search_server.MatchDocument("-golden dragon"s, 1);
-    search_server.MatchDocument("dragon snake -"s, 4);
-    search_server.MatchDocument("dragon - snake"s, 14);
+    search_server.AddDocument(1, "russian guys and golden dragon"s, DocumentStatus::ACTUAL, { 1, 2, 3 }); // normal
+    search_server.AddDocument(-1, "russian guys and golden dragon"s, DocumentStatus::ACTUAL, { 1, 2, 3 }); // exception
+    search_server.AddDocument(1, "russian guys and golden dragon"s, DocumentStatus::ACTUAL, { 1, 2, 3 }); // exception
+    search_server.AddDocument(2, "russian guys and golden dragon eat\x17"s, DocumentStatus::ACTUAL, { 1, 2, 3 }); // exception
+    //search_server.AddDocument(3, "a dragon eat\x17s meat with a small snake"s, DocumentStatus::ACTUAL, { -1, -2, -3 });
+    //search_server.AddDocument(4, "dragon and snake are good guys"s, DocumentStatus::ACTUAL, { 1, 1, 1 });
+
+    search_server.GetDocumentId(10); // exception 
+
+    search_server.FindTopDocuments("russian guys"s); // normal
+    search_server.FindTopDocuments("russian -guys"s); // normal
+    search_server.FindTopDocuments("russian real-guys"s); // normal
+    search_server.FindTopDocuments("--russian guys"s); // exception 
+    search_server.FindTopDocuments("guys -"s); // exception
+    search_server.FindTopDocuments("-"s); // exception
+    search_server.FindTopDocuments("eat\x17s russian -guys"s); // exception
+
+    search_server.MatchDocument("russian guys"s, 1); // normal
+    search_server.MatchDocument("russian -guys"s, 1); // normal
+    search_server.MatchDocument("russian real-guys"s, 1); // normal
+    search_server.MatchDocument("--russian guys"s, 1); // exception 
+    search_server.MatchDocument("guys -"s, 1); // exception 
+    search_server.MatchDocument("-"s, 1); // exception 
+    search_server.MatchDocument("eat\x17s russian -guys"s, 1); // exception 
 }
