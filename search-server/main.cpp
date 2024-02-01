@@ -84,12 +84,7 @@ class SearchServer {
 public:
     template <typename StringContainer>
     explicit SearchServer(const StringContainer& stop_words) : stop_words_(MakeUniqueNonEmptyStrings(stop_words)) {
-        /*for (const auto& stop_word : stop_words_) {
-            if (!IsValidWord(stop_word)) {
-                throw invalid_argument("Invalide characters in stop words"s);
-            }
-        }*/
-        if (!all_of(stop_words_.begin(), stop_words_.end(), [](string stop_word) { return IsValidWord(stop_word); })) {
+        if (!all_of(stop_words_.begin(), stop_words_.end(), [](const string& stop_word) { return IsValidWord(stop_word); })) {
             throw invalid_argument("Invalide characters in stop words"s);
         }
     }
@@ -103,9 +98,6 @@ public:
         }
         if (documents_.count(document_id)) {
             throw invalid_argument("ID " + document_id + " is already in added documents"s);
-        }
-        if (!IsValidWord(document)) {
-            throw invalid_argument("Invalid characters in document"s);
         }
         const vector<string> words = SplitIntoWordsNoStop(document);
         const double inv_word_count = 1.0 / words.size();
@@ -196,6 +188,9 @@ private:
     vector<string> SplitIntoWordsNoStop(const string& text) const {
         vector<string> words;
         for (const string& word : SplitIntoWords(text)) {
+            if (!IsValidWord(word)) {
+                throw invalid_argument("Invalid characters in word: "s + word);
+            }
             if (!IsStopWord(word)) {
                 words.push_back(word);
             }
@@ -231,7 +226,7 @@ private:
             is_minus = true;
             text = text.substr(1);
         }
-        if (IsValidWord(text) == false) {
+        if (!IsValidWord(text)) {
             throw invalid_argument("Errors in query words"s);
         }
         if (text[0] == '-') {
@@ -321,8 +316,6 @@ int main() {
     search_server.AddDocument(-1, "russian guys and golden dragon"s, DocumentStatus::ACTUAL, { 1, 2, 3 }); // exception
     search_server.AddDocument(1, "russian guys and golden dragon"s, DocumentStatus::ACTUAL, { 1, 2, 3 }); // exception
     search_server.AddDocument(2, "russian guys and golden dragon eat\x17"s, DocumentStatus::ACTUAL, { 1, 2, 3 }); // exception
-    //search_server.AddDocument(3, "a dragon eat\x17s meat with a small snake"s, DocumentStatus::ACTUAL, { -1, -2, -3 });
-    //search_server.AddDocument(4, "dragon and snake are good guys"s, DocumentStatus::ACTUAL, { 1, 1, 1 });
 
     search_server.GetDocumentId(10); // exception 
 
