@@ -28,23 +28,6 @@ private:
     size_t size_;
 };
 
-std::ostream& operator<<(std::ostream& out, const Document& document) {
-    out << "{ document_id = "s << document.id
-        << ", relevance = "s << document.relevance
-        << ", rating = "s << document.rating << " }"s;
-    return out;
-}
-
-template <typename To_Out>
-std::ostream& operator<<(std::ostream& out, const IteratorRange<To_Out>& sheet) {
-    auto i = sheet.begin();
-    while (i != sheet.end()) {
-        out << *i;
-        ++i;
-    }
-    return out;
-}
-
 template <typename T_Iterator>
 class Paginator {
 public:

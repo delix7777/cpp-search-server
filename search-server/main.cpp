@@ -1,16 +1,9 @@
-#include "document.h"
-#include "paginator.h"
-#include "read_input_functions.h"
-#include "string_processing.h"
+//#include "document.h"
+//#include "paginator.h"
+//#include "read_input_functions.h"
+//#include "string_processing.h"
 #include "search_server.h"
 #include "request_queue.h"
-
-void PrintDocument(const Document& document) {
-    std::cout << "{ "s
-        << "document_id = "s << document.id << ", "s
-        << "relevance = "s << document.relevance << ", "s
-        << "rating = "s << document.rating << " }"s << std::endl;
-}
 
 int main() {
     SearchServer search_server("and in at"s);

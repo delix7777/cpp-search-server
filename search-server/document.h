@@ -1,5 +1,6 @@
 #pragma once
 #include <iostream>
+#include "paginator.h"
 
 struct Document {
     Document() = default;
@@ -21,3 +22,17 @@ enum class DocumentStatus {
     BANNED,
     REMOVED,
 };
+
+std::ostream& operator<<(std::ostream& out, const Document& document);
+
+template <typename To_Out>
+std::ostream& operator<<(std::ostream& out, const IteratorRange<To_Out>& sheet) {
+    auto i = sheet.begin();
+    while (i != sheet.end()) {
+        out << *i;
+        ++i;
+    }
+    return out;
+}
+
+void PrintDocument(const Document& document);
